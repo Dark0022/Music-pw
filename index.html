@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline Music Player</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎵</text></svg>">
+    <style>
+        :root {
+            --primary: #6a11cb;
+            --secondary: #2575fc;
+            --dark: #2d3436;
+            --light: #f5f6fa;
+            --success: #00b894;
+            --danger: #e17055;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--light);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+        
+        @media (min-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .card h2 {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        .upload-area:hover {
+            border-color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .upload-area p {
+            margin: 10px 0;
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+        
+        .btn {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .player {
+            text-align: center;
+        }
+        
+        .current-song {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        
+        .song-title {
+            font-size: 1.3rem;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1.2rem;
+        }
+        
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+        
+        .play-btn {
+            background: var(--success);
+            width: 60px;
+            height: 60px;
+            font-size: 1.5rem;
+        }
+        
+        .progress-container {
+            margin: 20px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        
+        .progress {
+            height: 100%;
+            background: var(--success);
+            width: 0%;
+            transition: width 0.1s;
+        }
+        
+        .time-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        
+        .song-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .song-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .song-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .song-item.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-left: 3px solid var(--success);
+        }
+        
+        .song-info {
+            flex: 1;
+            text-align: left;
+        }
+        
+        .song-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 5px;
+        }
+        
+        .song-duration {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+        
+        .delete-btn {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 5px;
+            opacity: 0.7;
+        }
+        
+        .delete-btn:hover {
+            opacity: 1;
+        }
+        
+        .storage-info {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+        
+        .storage-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .storage-used {
+            height: 100%;
+            background: var(--success);
+            width: 0%;
+            transition: width 0.5s;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            opacity: 0.7;
+        }
+        
+        .empty-state p {
+            margin-bottom: 15px;
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .install-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎵 Offline Music Player</h1>
+            <p class="subtitle">Upload and play your music collection anytime, anywhere</p>
+        </header>
+        
+        <button id="installBtn" class="install-btn" style="display: none;">
+            <span>📱 Install App</span>
+        </button>
+        
+        <div class="main-content">
+            <div class="card">
+                <h2>📁 Upload Music</h2>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">🎵</div>
+                    <p><strong>Drag & Drop your music files here</strong></p>
+                    <p>or</p>
+                    <input type="file" id="fileInput" accept="audio/*" multiple style="display: none;">
+                    <button class="btn" id="selectFilesBtn">
+                        <span>📂 Select Files</span>
+                    </button>
+                    <p class="small">Supports MP3, WEBM, and other audio formats</p>
+                </div>
+                
+                <div class="storage-info">
+                    <p>Storage: <span id="storageText">0 MB used</span></p>
+                    <div class="storage-bar">
+                        <div class="storage-used" id="storageBar"></div>
+                    </div>
+                    <button class="btn btn-danger" id="clearAllBtn">
+                        <span>🗑️ Clear All Songs</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>🎵 Now Playing</h2>
+                <div class="player">
+                    <div class="current-song" id="currentSong">
+                        <div class="song-title">No song selected</div>
+                        <div class="song-artist">Select a song to play</div>
+                    </div>
+                    
+                    <div class="controls">
+                        <button class="control-btn" id="prevBtn">⏮️</button>
+                        <button class="control-btn play-btn" id="playBtn">▶️</button>
+                        <button class="control-btn" id="nextBtn">⏭️</button>
+                    </div>
+                    
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progressBar">
+                            <div class="progress" id="progress"></div>
+                        </div>
+                        <div class="time-info">
+                            <span id="currentTime">0:00</span>
+                            <span id="duration">0:00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="volume-control">
+                        <input type="range" id="volumeSlider" min="0" max="100" value="80">
+                    </div>
+                </div>
+                
+                <h2>🎼 Your Library</h2>
+                <div class="song-list" id="songList">
+                    <div class="empty-state">
+                        <p>No songs in your library yet</p>
+                        <p>Upload some music to get started!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Offline Music Player PWA • Your songs are stored locally on your device</p>
+        </footer>
+    </div>
+    
+    <div class="notification" id="notification">Song added to library!</div>
+
+    <script>
+        // DOM elements
+        const fileInput = document.getElementById('fileInput');
+        const selectFilesBtn = document.getElementById('selectFilesBtn');
+        const uploadArea = document.getElementById('uploadArea');
+        const songList = document.getElementById('songList');
+        const currentSong = document.getElementById('currentSong');
+        const playBtn = document.getElementById('playBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progress = document.getElementById('progress');
+        const currentTimeEl = document.getElementById('currentTime');
+        const durationEl = document.getElementById('duration');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const storageText = document.getElementById('storageText');
+        const storageBar = document.getElementById('storageBar');
+        const notification = document.getElementById('notification');
+        const installBtn = document.getElementById('installBtn');
+
+        // App state
+        let songs = [];
+        let currentSongIndex = -1;
+        let audio = new Audio();
+        let isPlaying = false;
+        let deferredPrompt;
+
+        // Initialize the app
+        function init() {
+            loadSongs();
+            setupEventListeners();
+            updateStorageInfo();
+            
+            // PWA installation prompt
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                installBtn.style.display = 'flex';
+            });
+            
+            installBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        installBtn.style.display = 'none';
+                    }
+                    deferredPrompt = null;
+                }
+            });
+	    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js')
+            .then(registration => console.log('SW registered'))
+            .catch(error => console.log('SW registration failed'));
+    }
+}
+        
+        // Set up event listeners
+        function setupEventListeners() {
+            // File selection
+            selectFilesBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // Drag and drop
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.6)';
+                uploadArea.style.background = 'rgba(255, 255, 255, 0.05)';
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                uploadArea.style.background = 'transparent';
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                uploadArea.style.background = 'transparent';
+                
+                if (e.dataTransfer.files.length) {
+                    handleFiles(e.dataTransfer.files);
+                }
+            });
+            
+            // Player controls
+            playBtn.addEventListener('click', togglePlay);
+            prevBtn.addEventListener('click', playPrev);
+            nextBtn.addEventListener('click', playNext);
+            
+            // Progress bar
+            progressBar.addEventListener('click', seek);
+            
+            // Volume
+            volumeSlider.addEventListener('input', () => {
+                audio.volume = volumeSlider.value / 100;
+            });
+            
+            // Clear all
+            clearAllBtn.addEventListener('click', clearAllSongs);
+            
+            // Audio events
+            audio.addEventListener('loadedmetadata', () => {
+                durationEl.textContent = formatTime(audio.duration);
+            });
+            
+            audio.addEventListener('timeupdate', () => {
+                const progressPercent = (audio.currentTime / audio.duration) * 100;
+                progress.style.width = `${progressPercent}%`;
+                currentTimeEl.textContent = formatTime(audio.currentTime);
+            });
+            
+            audio.addEventListener('ended', playNext);
+        }
+
+        // Handle file selection
+        function handleFileSelect(e) {
+            handleFiles(e.target.files);
+            fileInput.value = ''; // Reset input
+        }
+
+        // Process selected files
+        function handleFiles(files) {
+            const audioFiles = Array.from(files).filter(file => 
+                file.type.startsWith('audio/')
+            );
+            
+            if (audioFiles.length === 0) {
+                showNotification('No audio files selected', 'danger');
+                return;
+            }
+            
+            audioFiles.forEach(file => {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    const song = {
+                        id: Date.now() + Math.random(),
+                        name: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
+                        file: e.target.result,
+                        type: file.type
+                    };
+                    
+                    songs.push(song);
+                    saveSongs();
+                    renderSongList();
+                    updateStorageInfo();
+                    showNotification(`"${song.name}" added to library`);
+                    
+                    // Auto-play first song if none is playing
+                    if (currentSongIndex === -1) {
+                        playSong(0);
+                    }
+                };
+                
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Save songs to localStorage
+        function saveSongs() {
+            localStorage.setItem('offlineMusicPlayerSongs', JSON.stringify(songs));
+        }
+
+        // Load songs from localStorage
+        function loadSongs() {
+            const storedSongs = localStorage.getItem('offlineMusicPlayerSongs');
+            if (storedSongs) {
+                songs = JSON.parse(storedSongs);
+                renderSongList();
+                
+                // Restore last played song if available
+                const lastPlayedIndex = localStorage.getItem('lastPlayedIndex');
+                if (lastPlayedIndex !== null && songs[lastPlayedIndex]) {
+                    currentSongIndex = parseInt(lastPlayedIndex);
+                    updateCurrentSongDisplay();
+                }
+            }
+        }
+
+        // Render the song list
+        function renderSongList() {
+            if (songs.length === 0) {
+                songList.innerHTML = `
+                    <div class="empty-state">
+                        <p>No songs in your library yet</p>
+                        <p>Upload some music to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            songList.innerHTML = songs.map((song, index) => `
+                <div class="song-item ${index === currentSongIndex ? 'active' : ''}" data-index="${index}">
+                    <div class="song-info">
+                        <div class="song-name">${song.name}</div>
+                        <div class="song-duration">${song.type}</div>
+                    </div>
+                    <button class="delete-btn" data-id="${song.id}">🗑️</button>
+                </div>
+            `).join('');
+            
+            // Add event listeners to song items and delete buttons
+            document.querySelectorAll('.song-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('delete-btn')) {
+                        const index = parseInt(item.dataset.index);
+                        playSong(index);
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = btn.dataset.id;
+                    deleteSong(id);
+                });
+            });
+        }
+
+        // Play a song by index
+        function playSong(index) {
+            if (index < 0 || index >= songs.length) return;
+            
+            currentSongIndex = index;
+            const song = songs[index];
+            
+            audio.src = song.file;
+            audio.load();
+            
+            updateCurrentSongDisplay();
+            renderSongList();
+            
+            // Save last played song
+            localStorage.setItem('lastPlayedIndex', index.toString());
+            
+            // Auto-play
+            audio.play().then(() => {
+                isPlaying = true;
+                updatePlayButton();
+            }).catch(error => {
+                console.error('Playback failed:', error);
+            });
+        }
+
+        // Toggle play/pause
+        function togglePlay() {
+            if (currentSongIndex === -1 && songs.length > 0) {
+                playSong(0);
+                return;
+            }
+            
+            if (isPlaying) {
+                audio.pause();
+            } else {
+                audio.play();
+            }
+            
+            isPlaying = !isPlaying;
+            updatePlayButton();
+        }
+
+        // Play previous song
+        function playPrev() {
+            if (songs.length === 0) return;
+            
+            let newIndex = currentSongIndex - 1;
+            if (newIndex < 0) newIndex = songs.length - 1;
+            
+            playSong(newIndex);
+        }
+
+        // Play next song
+        function playNext() {
+            if (songs.length === 0) return;
+            
+            let newIndex = currentSongIndex + 1;
+            if (newIndex >= songs.length) newIndex = 0;
+            
+            playSong(newIndex);
+        }
+
+        // Seek in the current song
+        function seek(e) {
+            if (!audio.duration) return;
+            
+            const rect = progressBar.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            audio.currentTime = percent * audio.duration;
+        }
+
+        // Update the play button appearance
+        function updatePlayButton() {
+            playBtn.textContent = isPlaying ? '⏸️' : '▶️';
+        }
+
+        // Update the current song display
+        function updateCurrentSongDisplay() {
+            if (currentSongIndex === -1) {
+                currentSong.innerHTML = `
+                    <div class="song-title">No song selected</div>
+                    <div class="song-artist">Select a song to play</div>
+                `;
+                return;
+            }
+            
+            const song = songs[currentSongIndex];
+            currentSong.innerHTML = `
+                <div class="song-title">${song.name}</div>
+                <div class="song-artist">${song.type}</div>
+            `;
+        }
+
+        // Delete a song
+        function deleteSong(id) {
+            const index = songs.findIndex(song => song.id == id);
+            if (index === -1) return;
+            
+            // If we're deleting the currently playing song, stop it
+            if (index === currentSongIndex) {
+                audio.pause();
+                currentSongIndex = -1;
+                updateCurrentSongDisplay();
+            }
+            
+            songs.splice(index, 1);
+            saveSongs();
+            renderSongList();
+            updateStorageInfo();
+            showNotification('Song deleted');
+        }
+
+        // Clear all songs
+        function clearAllSongs() {
+            if (songs.length === 0) return;
+            
+            if (confirm('Are you sure you want to delete all songs?')) {
+                songs = [];
+                audio.pause();
+                currentSongIndex = -1;
+                saveSongs();
+                renderSongList();
+                updateCurrentSongDisplay();
+                updateStorageInfo();
+                showNotification('All songs deleted');
+            }
+        }
+
+        // Update storage information
+        function updateStorageInfo() {
+            // Calculate approximate storage usage
+            // Each data URL is about 37% larger than the original file
+            const totalSize = songs.reduce((total, song) => {
+                // Approximate the original file size from the data URL
+                return total + (song.file.length * 0.63);
+            }, 0);
+            
+            const mbUsed = (totalSize / (1024 * 1024)).toFixed(2);
+            storageText.textContent = `${mbUsed} MB used`;
+            
+            // Calculate percentage of a hypothetical 50MB limit
+            const percentUsed = Math.min((totalSize / (50 * 1024 * 1024)) * 100, 100);
+            storageBar.style.width = `${percentUsed}%`;
+        }
+
+        // Show notification
+        function showNotification(message, type = 'success') {
+            notification.textContent = message;
+            notification.style.background = type === 'danger' ? 'var(--danger)' : 'var(--success)';
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Format time (seconds to MM:SS)
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
